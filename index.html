@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>手把手教你做一个网站</title>
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+
+<div class="page">
+
+  <div class="lang-bar">
+    <select id="langSelect" class="lang-select">
+      <option value="zh">简体中文</option>
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+    </select>
+  </div>
+
+  <section class="card">
+    <div class="slide-top">
+      <span class="badge" id="indexLabel">1 / 4</span>
+      <div class="progress-track" id="progressTrack">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+    </div>
+
+    <div class="slide-body" id="slideBody">
+      <h1 class="slide-title" id="slideTitle"></h1>
+      <div class="slide-desc" id="slideDesc"></div>
+      <pre class="code" id="slideCode"></pre>
+    </div>
+
+    <div class="slide-nav">
+      <button class="btn btn-ghost" id="prevBtn" type="button"></button>
+      <div class="dots" id="dots"></div>
+      <button class="btn btn-primary" id="nextBtn" type="button"></button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="discuss-head">
+      <h2 id="discussTitle"></h2>
+      <span class="count" id="commentCount"></span>
+    </div>
+
+    <div class="form">
+      <input type="text" id="nameInput" maxlength="20" autocomplete="off" />
+      <textarea id="contentInput" maxlength="500"></textarea>
+      <div class="form-foot">
+        <span class="hint" id="formHint"></span>
+        <span class="counter" id="charCounter">0 / 500</span>
+        <button class="btn btn-primary" id="publishBtn" type="button"></button>
+      </div>
+    </div>
+
+    <ul class="comment-list" id="commentList"></ul>
+  </section>
+
+</div>
+
+<script>
+const LANGS = {
+  zh: { htmlLang: 'zh-CN' },
+  en: { htmlLang: 'en' },
+  ja: { htmlLang: 'ja' }
+};
+
+const LANG_KEY = 'tutorial-lang';
+const STORAGE_KEY = 'tutorial-comments-v1';
+const NICKNAME_KEY = 'tutorial-nickname';
+
+const CONTENT = {
+  zh: {
+    ui: {
+      docTitle: '手把手教你做一个网站',
+      prev: '← 上一页', next: '下一页 →',
+      discussTitle: '💬 讨论区',
+      namePlaceholder: '你的昵称（最多 20 字）',
+      contentPlaceholder: '说说你的想法…（Ctrl / ⌘ + Enter 快速发布）',
+      publish: '发布', delete: '删除',
+      countN: n => `共 ${n} 条讨论`,
+      empty: '还没有人发言，来留下第一条评论吧～',
+      hintName: '请先填写昵称～', hintContent: '评论内容不能为空哦～', hintOk: '发布成功 ✓',
+      timeJustNow: '刚刚', timeMin: n => `${n} 分钟前`, timeHour: n => `${n} 小时前`,
+      counter: (n, max) => `${n} / ${max}`
+    },
+    slides: [
+      { title: '第一步：认识 HTML', desc: ['HTML 负责网页的结构。'] },
+      { title: '第二步：写 CSS', desc: ['CSS 负责网页的长相。'] },
+      { title: '第三步：加 JavaScript', desc: ['JS 负责网页的行为。'] },
+      { title: '第四步：部署上线', desc: ['放到服务器让别人访问。'] }
+    ]
+  },
+  en: {
+    ui: {
+      docTitle: 'Build a Website Step by Step',
+      prev: '← Prev', next: 'Next →',
+      discussTitle: '💬 Discussion',
+      namePlaceholder: 'Your nickname',
+      contentPlaceholder: 'Share your thoughts…',
+      publish: 'Post', delete: 'Delete',
+      countN: n => `${n} comments`,
+      empty: 'No comments yet.',
+      hintName: 'Enter nickname.', hintContent: 'Comment cannot be empty.', hintOk: 'Posted ✓',
+      timeJustNow: 'just now', timeMin: n => `${n} min ago`, timeHour: n => `${n} hr ago`,
+      counter: (n, max) => `${n} / ${max}`
+    },
+    slides: [
+      { title: 'Step 1: Meet HTML', desc: ['HTML defines structure.'] },
+      { title: 'Step 2: Write CSS', desc: ['CSS controls the look.'] },
+      { title: 'Step 3: Add JS', desc: ['JS drives behavior.'] },
+      { title: 'Step 4: Deploy', desc: ['Put it on a server.'] }
+    ]
+  },
+  ja: {
+    ui: {
+      docTitle: 'ウェブサイト制作',
+      prev: '← 前へ', next: '次へ →',
+      discussTitle: '💬 ディスカッション',
+      namePlaceholder: 'ニックネーム',
+      contentPlaceholder: '感想を書く…',
+      publish: '投稿', delete: '削除',
+      countN: n => `${n} コメント`,
+      empty: 'まだコメントはありません。',
+      hintName: '名前を入力してください。', hintContent: 'コメントを入力してください。', hintOk: '投稿しました ✓',
+      timeJustNow: 'たった今', timeMin: n => `${n} 分前`, timeHour: n => `${n} 時間前`,
+      counter: (n, max) => `${n} / ${max}`
+    },
+    slides: [
+      { title: 'ステップ1：HTML', desc: ['HTMLは構造を担当します。'] },
+      { title: 'ステップ2：CSS', desc: ['CSSは見た目を担当します。'] },
+      { title: 'ステップ3：JavaScript', desc: ['JSは動きを担当します。'] },
+      { title: 'ステップ4：デプロイ', desc: ['サーバーに公開します。'] }
+    ]
+  }
+};
+
+const CODE_SNIPPETS = [
+  '<h1>Hello World</h1>\n<p>这是 HTML</p>',
+  'p {\n  color: #333;\n  font-size: 16px;\n}',
+  'const btn = document.querySelector("#btn");\nbtn.addEventListener("click", () => {\n  alert("Clicked!");\n});',
+  'git init\ngit add .\ngit commit -m "init"\ngit push origin main'
+];
+
+const slideTitleEl = document.getElementById('slideTitle');
+const slideDescEl = document.getElementById('slideDesc');
+const slideCodeEl = document.getElementById('slideCode');
+const slideBody = document.getElementById('slideBody');
+const indexLabel = document.getElementById('indexLabel');
+const progressBar = document.getElementById('progressBar');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const dotsEl = document.getElementById('dots');
+const langSelect = document.getElementById('langSelect');
+const discussTitle = document.getElementById('discussTitle');
+const nameInput = document.getElementById('nameInput');
+const contentInput = document.getElementById('contentInput');
+const publishBtn = document.getElementById('publishBtn');
+const commentList = document.getElementById('commentList');
+const commentCount = document.getElementById('commentCount');
+const formHint = document.getElementById('formHint');
+const charCounter = document.getElementById('charCounter');
+const progressTrack = document.getElementById('progressTrack');
+
+let currentLang = 'zh';
+let currentIndex = 0;
+
+function t() { return CONTENT[currentLang].ui; }
+function slides() { return CONTENT[currentLang].slides; }
+
+function paintSlide(i) {
+  const s = slides()[i];
+  if (!s) return;
+  slideTitleEl.textContent = s.title;
+  slideDescEl.innerHTML = '';
+  s.desc.forEach(line => {
+    const p = document.createElement('p');
+    p.textContent = line;
+    slideDescEl.appendChild(p);
+  });
+  slideCodeEl.textContent = CODE_SNIPPETS[i] || '';
+  indexLabel.textContent = `${i + 1} / ${slides().length}`;
+  progressBar.style.width = ((i + 1) / slides().length * 100) + '%';
+  prevBtn.disabled = i === 0;
+  nextBtn.disabled = i === slides().length - 1;
+  Array.from(dotsEl.children).forEach((dot, idx) => {
+    dot.classList.toggle('active', idx === i);
+  });
+}
+
+function goToSlide(target) {
+  if (target < 0 || target >= slides().length || target === currentIndex) return;
+  currentIndex = target;
+  slideBody.classList.add('is-fading');
+  setTimeout(() => {
+    paintSlide(currentIndex);
+    slideBody.classList.remove('is-fading');
+  }, 180);
+}
+
+CONTENT.zh.slides.forEach((_, i) => {
+  const dot = document.createElement('button');
+  dot.type = 'button';
+  dot.className = 'dot';
+  dot.addEventListener('click', () => goToSlide(i));
+  dotsEl.appendChild(dot);
+});
+
+prevBtn.addEventListener('click', () => goToSlide(currentIndex - 1));
+nextBtn.addEventListener('click', () => goToSlide(currentIndex + 1));
+
+function loadComments() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) { return []; }
+}
+
+function saveComments(list) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(list)); } catch (e) {}
+}
+
+function formatTime(ts) {
+  const diff = Date.now() - ts;
+  if (diff < 60000) return t().timeJustNow;
+  if (diff < 3600000) return t().timeMin(Math.floor(diff / 60000));
+  if (diff < 86400000) return t().timeHour(Math.floor(diff / 3600000));
+  return new Date(ts).toLocaleDateString(LANGS[currentLang].htmlLang);
+}
+
+function renderComments() {
+  const list = loadComments();
+  commentList.innerHTML = '';
+  commentCount.textContent = list.length ? t().countN(list.length) : '';
+  if (!list.length) {
+    commentList.innerHTML = `<li class="empty">${t().empty}</li>`;
+    return;
+  }
+  list.sort((a, b) => b.time - a.time).forEach(c => {
+    const li = document.createElement('li');
+    li.className = 'comment';
+    
+    const avatar = document.createElement('div');
+    avatar.className = 'avatar';
+    avatar.textContent = c.name.charAt(0).toUpperCase();
+    avatar.style.background = `hsl(${c.name.length * 40 % 360}, 60%, 55%)`;
+    
+    const main = document.createElement('div');
+    main.className = 'comment-main';
+    main.innerHTML = `
+      <div class="comment-head">
+        <span class="comment-name"></span>
+        <span class="comment-time">${formatTime(c.time)}</span>
+        <button class="comment-del">${t().delete}</button>
+      </div>
+      <p class="comment-content"></p>
+    `;
+    // 防 XSS
+    main.querySelector('.comment-name').textContent = c.name;
+    main.querySelector('.comment-content').textContent = c.content;
+    main.querySelector('.comment-del').addEventListener('click', () => {
+      saveComments(loadComments().filter(x => x.id !== c.id));
+      renderComments();
+    });
+    
+    li.appendChild(avatar);
+    li.appendChild(main);
+    commentList.appendChild(li);
+  });
+}
+
+function publishComment() {
+  const name = nameInput.value.trim();
+  const content = contentInput.value.trim();
+  if (!name) { formHint.textContent = t().hintName; return; }
+  if (!content) { formHint.textContent = t().hintContent; return; }
+  
+  const list = loadComments();
+  list.push({ id: Date.now().toString(), name, content, time: Date.now() });
+  saveComments(list);
+  contentInput.value = '';
+  charCounter.textContent = t().counter(0, 500);
+  formHint.textContent = t().hintOk;
+  formHint.className = 'hint ok';
+  setTimeout(() => formHint.textContent = '', 2000);
+  
+  try { localStorage.setItem(NICKNAME_KEY, name); } catch(e) {}
+  renderComments();
+}
+
+publishBtn.addEventListener('click', publishComment);
+contentInput.addEventListener('input', () => {
+  charCounter.textContent = t().counter(contentInput.value.length, 500);
+});
+
+function applyLanguage(lang) {
+  if (!CONTENT[lang]) lang = 'zh';
+  currentLang = lang;
+  document.documentElement.lang = LANGS[lang].htmlLang;
+  document.title = t().docTitle;
+  prevBtn.textContent = t().prev;
+  nextBtn.textContent = t().next;
+  discussTitle.textContent = t().discussTitle;
+  nameInput.placeholder = t().namePlaceholder;
+  contentInput.placeholder = t().contentPlaceholder;
+  publishBtn.textContent = t().publish;
+  charCounter.textContent = t().counter(contentInput.value.length, 500);
+  paintSlide(currentIndex);
+  renderComments();
+}
+
+langSelect.addEventListener('change', () => applyLanguage(langSelect.value));
+
+try {
+  const savedName = localStorage.getItem(NICKNAME_KEY);
+  if (savedName) nameInput.value = savedName;
+  const savedLang = localStorage.getItem(LANG_KEY);
+  if (savedLang) {
+    currentLang = savedLang;
+    langSelect.value = savedLang;
+  }
+} catch(e) {}
+
+applyLanguage(currentLang);
+</script>
+</body>
+</html>
